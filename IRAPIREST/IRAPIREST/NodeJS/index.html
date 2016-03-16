@@ -1,0 +1,23 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Citizen Alarm Monitor</title>
+      <script src="../Content/SocketIO/socket.io-1.2.0.js"></script>
+      <script src="../Content/Jquery-2.2.1/jquery-2.2.1.min.js"></script>
+      <script>
+        var socket = io();
+        //Dispatchers
+        socket.emit('onGetUsersConnected',"");
+        //Listenners
+        //socket.on('onGetUsersConnected', function (msg) {
+           
+        //});
+      </script>
+  </head>
+  <body>
+    <ul>
+        <li>aaaa</li>
+        <li>bbbb</li>
+    </ul>
+  </body>
+</html>
