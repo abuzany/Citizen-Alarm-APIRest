@@ -7,6 +7,10 @@ app.get('/', function(req, res){
   res.sendFile(__dirname + '/index.html');
 });
 
+app.get('/boot', function (req, res) {
+    res.sendFile(__dirname + '/boot.html');
+});
+
 io.on('connection', function(socket){
   console.log('connected: ' + socket.id);
 
@@ -26,6 +30,9 @@ io.on('connection', function(socket){
 
       //Add client to client's list
       clients.push(client);
+
+      //To tell the clients that there is a new user online
+      io.emit('onJoin', data);
   });
 
   socket.on('onAlert', function(data){
@@ -42,8 +49,10 @@ io.on('connection', function(socket){
         var dsitance = distanceBetweenTwoPoints(data.latitude, data.longitude, client.latitude, client.longitude);
 
         //Verify if client is arround 1 km
-        if(dsitance <= 1)
-            io.sockets.connected[clients[i].socketId].emit('onAlert', data);
+        if (dsitance <= 1) {
+            console.log('send'+client.userId);
+            io.sockets.connected[client.socketId].emit('onAlert', data);
+        }
       }
   });
 
@@ -52,7 +61,17 @@ io.on('connection', function(socket){
   });
 
   socket.on('disconnect', function(){
-    console.log('client disconnected');
+      console.log('client disconnected');
+
+      //Optimize search
+      for (var i = 0; i < clients.length; i++) {
+          var client = clients[i];
+
+          if (client.socketId == socket.id) {
+              console.log('onLogoff: ' + client.userId);
+              io.emit('onLogoff', client.userId);
+          }
+      }
   });
 });
 

@@ -13,7 +13,7 @@ namespace IRAPIREST.Models
 
         public string Alias { get; set; }
 
-        public string email { get; set; }
+        public string Email { get; set; }
 
         public DateTime CreationDate { get; set; }
     }

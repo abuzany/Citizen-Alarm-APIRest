@@ -24,6 +24,8 @@ namespace IRAPIREST.Models
         public System.Data.Entity.DbSet<IRAPIREST.Models.AlertType> AlertTypes { get; set; }
 
         public System.Data.Entity.DbSet<IRAPIREST.Models.User> Users { get; set; }
+
+        public System.Data.Entity.DbSet<IRAPIREST.Models.UserConfiguration> UserConfigurations { get; set; }
     
     }
 }
