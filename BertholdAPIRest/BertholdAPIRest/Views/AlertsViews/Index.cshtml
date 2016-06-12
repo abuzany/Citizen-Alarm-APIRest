@@ -1,0 +1,63 @@
+﻿@model IEnumerable<BertholdAPIRest.Models.Alert>
+
+@{
+    Layout = null;
+}
+
+<table  id="tblAlarmsHistory" class="table table-bordered">
+    <thead>
+        <tr>
+            <th>
+                @Html.DisplayNameFor(model => model.UserId)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.AlertType)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.CreationDate)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.Latitude)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.Longitude)
+            </th>
+            <th></th>
+        </tr>
+    </thead>
+
+    <tbody>
+        @foreach (var item in Model)
+        {
+            <tr>
+                <td>
+                    @Html.DisplayFor(modelItem => item.UserId)
+                </td>
+                <td>
+                    @Html.DisplayFor(modelItem => item.AlertType)
+                </td>
+                <td>
+                    @Html.DisplayFor(modelItem => item.CreationDate)
+                </td>
+                <td>
+                    @Html.DisplayFor(modelItem => item.Latitude)
+                </td>
+                <td>
+                    @Html.DisplayFor(modelItem => item.Longitude)
+                </td>
+                <td hidden="hidden">
+                    @Html.DisplayFor(modelItem => item.Description)
+                </td>
+                <td hidden="hidden"> 
+                    @Html.DisplayFor(modelItem => item.Address)
+
+                </td>
+                <td>
+                    <button type="button" class="btn btn-primary btn-lg" data-toggle="modal" data-target="#myModal">
+                        Details
+                    </button>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>

@@ -1,0 +1,509 @@
+﻿<script src="https://cdn.socket.io/socket.io-1.4.5.js"></script>
+<script src="http://code.jquery.com/jquery-1.11.1.js"></script>
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBHbuYXebtBZeJzBCvNzsXuTI_G_H7sNMk &callback=initMap"></script>
+<script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+<script src="~/Scripts/canvasjs.min.js"></script>
+<script>
+
+          var socket = io('http://localhost:3000/');
+          var userMarkersArray = [];
+          var alertsArray = [];
+
+          $(document).ready(function () {
+              //Katink
+              SignIn();
+
+              //Charts
+              createUsersLiveConnectedChart();
+
+              createAlertsChart();
+
+              // map options
+              var options = {
+                  zoom: 5,
+                  center: new google.maps.LatLng(19.432608, -99.133208), // centered Mx
+                  mapTypeId: google.maps.MapTypeId.ROADMAP,
+                  mapTypeControl: false
+              };
+
+              // init map
+              var map = new google.maps.Map(document.getElementById('map'), options);
+              var map2 = new google.maps.Map(document.getElementById('map2'), options);
+
+              var geocoder = new google.maps.Geocoder;
+              
+              var markers = [];
+
+              $('#tblAlarmsHistory tbody tr').each(function () {
+                  var row = $(this).find('td');
+                  var userId = parseInt(row.eq(0).text());
+                  var alertTypeId = parseInt(row.eq(1).text());
+                  var date = row.eq(2).text();
+                  var latitud = parseFloat(row.eq(3).text());
+                  var longitude = parseFloat(row.eq(4).text());
+                  var description = row.eq(5).text();
+                  var address = row.eq(6).text();
+                  var latLng = { lat: latitud, lng: longitude }
+
+                  var alertType = "";
+
+                  switch (alertTypeId) {
+                      case 1:
+                          alertType = "Robbery";
+                          break;
+
+                      case 2:
+                          alertType = "Accident";
+                          break;
+
+                      case 3:
+                          alertType = "Kidnap";
+                          break;
+                  }
+
+                  var contentString = '<div id="content">' +
+                        '<h4 id="firstHeading" class="firstHeading">' + alertType + '</h1>' +
+                        '<div id="bodyContent">' +
+                        '<p>' + date + '</p>' +
+                        '<p>by ' + userId + '</p>' +
+                        '<p>' + description + '</p>' +
+                        '<p>' + address + '</p>' +
+                        '</div>' +
+                        '</div>';
+
+                  var infowindow = new google.maps.InfoWindow({
+                      content: contentString
+                  });
+
+                  // init marker
+                  var marker = new google.maps.Marker({
+                      position: latLng,
+                      map: map,
+                  });
+
+                  // To add the marker to the map, call setMap();
+                  marker.addListener('click', function () {
+                      infowindow.open(map, marker);
+                  });
+              });
+
+              /////////////////////////////////////////////////
+              //////////////////Listenners////////////////////
+              ///////////////////////////////////////////////
+              socket.on('onSignIn', function (user) {
+                  if (user.userId == '200910586') {
+                      GetUsersConnected();
+                  }
+                  else {
+                      var tr = '<tr><td>' + user.userId + '</td><td>' + user.latitude + '</td><td>' + user.longitude + '</td></tr>';
+
+                      $("#tblUsersConnected tbody").append(tr)
+
+                      geocodeUser(geocoder, map2, user);
+                  }
+              });
+
+              socket.on('onGetUsersConnected', function (users) {
+                  for (var i = 0; i < users.length; i++) {
+                      var u = users[i];
+                      
+                      var tr = '<tr><td>' + u.userId + '</td><td>' + u.latitude + '</td><td>' + u.longitude + '</td></tr>';
+
+                      $("#tblUsersConnected tbody").append(tr)
+
+                      geocodeUser(geocoder, map2, u);
+                  }
+              });
+
+              socket.on('onSingOut', function (userId) {
+                  $('#tblUsersConnected tbody tr').each(function () {
+                      var row = $(this).find('td');
+                      var id = parseInt(row.eq(0).text());
+
+                      if(id == userId){
+                          row.remove();
+
+                          deleteMarkerByUserId(userId);
+                      }
+                  });
+              });
+
+              socket.on('onAlert', function (data) {
+                  alert(data);
+              });
+          });
+
+          //////////////////////////////////////////////
+          //////////////////Dispachers/////////////////
+          ////////////////////////////////////////////
+          //socket.emit('onGetUsersConnected', "");
+
+          ////////////////////////////////////////////
+          /////////////////Methods///////////////////
+          //////////////////////////////////////////
+          function SignIn() {
+              console.log('SignIn');
+              navigator.geolocation.getCurrentPosition(GetLocation);
+          }
+
+          function GetUsersConnected() {
+              console.log('GetUsersConnected');
+              socket.emit('onGetUsersConnected');
+          }
+
+          function GetLocation(location) {
+              var data = {
+                  userId: '200910586', latitude: location.coords.latitude, longitude: location.coords.longitude, roleId: '1'
+              };
+
+              socket.emit('onSignIn', data);
+          }
+
+          function geocodeAlert(geocoder, map, alert) {
+              geocoder.geocode({ 'location': alert.latlng }, function (results, status) {
+                  if (status === google.maps.GeocoderStatus.OK) {
+                      if (results[1]) {
+                          var contentString = '<div id="content">' +
+                         '<h4 id="firstHeading" class="firstHeading">' + alert.alertType + '</h1>' +
+                         '<div id="bodyContent">' +
+                         '<p>' + alert.date + '</p>' +
+                         '<p>by ' + alert.userId + '</p>' +
+                         '<p>' + alert.description + '</p>' +
+                         '<p>' + results[1].formatted_address + '</p>' +
+                         '</div>' +
+                         '</div>';
+
+                          var infowindow = new google.maps.InfoWindow({
+                              content: contentString
+                          });
+
+                          // init marker
+                          var marker = new google.maps.Marker({
+                              position: alert.latlng,
+                              map: map,
+                          });
+
+                          // To add the marker to the map, call setMap();
+                          marker.addListener('click', function () {
+                              infowindow.open(map, marker);
+                          });
+                      } else {
+                          window.alert('No results found');
+                      }
+                  } else {
+                      window.alert('Geocoder failed due to: ' + status);
+                  }
+              });
+          }
+
+          function geocodeUser(geocoder, map, user) {
+              var latLng = { lat: user.latitude, lng: user.longitude}
+              geocoder.geocode({ 'location': latLng }, function (results, status) {
+                  if (status === google.maps.GeocoderStatus.OK) {
+                      if (results[1]) {
+                          var contentString = '<div id="content">' +
+                          '<h4 id="firstHeading" class="firstHeading"> UserId: ' + user.userId + '</h1>' +
+                          '<div id="bodyContent">' +
+                          '<p>' + results[1].formatted_address + '</p>' +
+                          '</div>' +
+                          '</div>';
+
+                          var infowindow = new google.maps.InfoWindow({
+                              content: contentString
+                          });
+
+                          // init marker
+                          var marker = new google.maps.Marker({
+                              position: latLng,
+                              map: map,
+                          });
+
+                          // To add the marker to the map, call setMap();
+                          marker.addListener('click', function () {
+                              infowindow.open(map, marker);
+                          });
+
+                          var userMarker = {userId: user.userId, marker:marker };
+
+                          //Add marker to array
+                          userMarkersArray.push(userMarker);
+                      } else {
+                          window.alert('No results found');
+                      }
+                  } else {
+                      window.alert('Geocoder failed due to: ' + status);
+                  }
+              });
+          }
+
+          function deleteMarkerByUserId(userId) {
+              for (var i = 0; i < userMarkersArray.length; i++) {
+                  var u = userMarkersArray[i];
+                  if (u.userId == userId) {
+                      u.marker.setMap(null);
+                      userMarkersArray.splice(i, 1);
+                  }
+              }
+          }
+
+          function createUsersLiveConnectedChart() {
+              var dps = []; // dataPoints
+
+              var chart = new CanvasJS.Chart("chartUsersConnected", {
+                  title: {
+                      text: "Live Users Connected"
+                  },
+                  data: [{
+                      type: "line",
+                      dataPoints: dps
+                  }]
+              });
+
+              var xVal = 0;
+              var yVal = 1;
+              var updateInterval = 1000;
+              var dataLength = 60; // number of dataPoints visible at any point
+
+              var updateChart = function (count) {
+                  count = count || 1;
+                  // count is number of times loop runs to generate random dataPoints. 
+
+                  for (var j = 0; j < count; j++) {
+                      yVal = userMarkersArray.length;
+                      dps.push({
+                          x: xVal,
+                          y: yVal
+                      });
+                      xVal++;
+                  };
+                  if (dps.length > dataLength) {
+                      dps.shift();
+                  }
+
+                  chart.render();
+              };
+
+              // generates first set of dataPoints
+              updateChart(dataLength);
+
+              // update chart after specified time. 
+              setInterval(function () { updateChart() }, updateInterval);
+          }
+
+          function createAlertsChart() {
+              var robberyCount = 0;
+              var accidentCount = 0;
+              var kidnapCount = 0;
+
+              var alerts=[];
+
+              $('#tblAlarmsHistory tbody tr').each(function () {
+                  var row = $(this).find('td');
+
+                  var alertTypeId = parseInt(row.eq(1).text());
+                  var date = row.eq(2).text();
+                  var temp = new Date('05/06/2016 11:19:20 p. m.');
+
+                  switch (alertTypeId) {
+                      case 1:
+                          robberyCount = robberyCount + 1;
+                          break;
+
+                      case 2:
+                          accidentCount = accidentCount + 1;
+                          break;
+
+                      case 3:
+                          kidnapCount = kidnapCount + 1;
+                          break;
+                  }
+              });
+
+              // dataPoints
+              var dataPoints1 = [];
+              var dataPoints2 = [];
+              var dataPoints3 = [];
+
+              var chart = new CanvasJS.Chart("chartAlerts", {
+                  zoomEnabled: true,
+                  title: {
+                      text: "Alerts"
+                  },
+                  toolTip: {
+                      shared: true
+
+                  },
+                  legend: {
+                      verticalAlign: "top",
+                      horizontalAlign: "center",
+                      fontSize: 14,
+                      fontWeight: "bold",
+                      fontFamily: "calibri",
+                      fontColor: "dimGrey"
+                  },
+                  axisX: {
+                      title: "chart updates every 3 secs"
+                  },
+                  axisY: {
+                      prefix: '$',
+                      includeZero: false
+                  },
+                  data: [{
+                      // dataSeries1
+                      type: "line",
+                      xValueType: "dateTime",
+                      showInLegend: true,
+                      name: "Reobberies A",
+                      dataPoints: dataPoints1
+                  },
+                  {
+                      // dataSeries2
+                      type: "line",
+                      xValueType: "dateTime",
+                      showInLegend: true,
+                      name: "Accidentes B",
+                      dataPoints: dataPoints2
+                  },
+                  {
+                      // dataSeries3
+                      type: "line",
+                      xValueType: "dateTime",
+                      showInLegend: true,
+                      name: "Kidnapings C",
+                      dataPoints: dataPoints3
+                  }],
+                  legend: {
+                      cursor: "pointer",
+                      itemclick: function (e) {
+                          if (typeof (e.dataSeries.visible) === "undefined" || e.dataSeries.visible) {
+                              e.dataSeries.visible = false;
+                          }
+                          else {
+                              e.dataSeries.visible = true;
+                          }
+                          chart.render();
+                      }
+                  }
+              });
+
+              var updateInterval = 3000;
+              // initial value
+              var yValue1 = robberyCount;
+              var yValue2 = kidnapCount;
+              var yValue3 = accidentCount;
+
+              //starting at 00.00 am
+              var time = new Date;
+              time.setHours(00);
+              time.setMinutes(00);
+              time.setSeconds(00);
+              time.setMilliseconds(00);
+
+              var updateChart = function (count) {
+                  count = count || 1;
+
+                  // count is number of times loop runs to generate random dataPoints. 
+
+                  for (var i = 0; i < count; i++) {
+
+                      // add interval duration to time				
+                      time.setTime(time.getTime() + updateInterval);
+
+
+                      // generating random values
+                      //var deltaY1 = .5 + Math.random() * (-.5 - .5);
+                      //var deltaY2 = .5 + Math.random() * (-.5 - .5);
+                      //var deltaY3 = .5 + Math.random() * (-.5 - .5);
+
+                      // adding random value and rounding it to two digits. 
+                      //yValue1 = Math.round((yValue1 + deltaY1) * 100) / 100;
+                      //yValue2 = Math.round((yValue2 + deltaY2) * 100) / 100;
+                      //yValue3 = Math.round((yValue3 + deltaY3) * 100) / 100;
+                      var robberyCount = 0;
+                      var accidentCount = 0;
+                      var accidentCount = 0;
+
+                      $('#tblAlarmsHistory tbody tr').each(function () {
+                          var row = $(this).find('td');
+
+                          var alertTypeId = parseInt(row.eq(1).text());
+
+                          switch (alertTypeId) {
+                              case 1:
+                                  robberyCount = robberyCount + 1;
+                                  break; robberyCountv
+
+                              case 2:
+                                  accidentCount = accidentCount + 1;
+                                  break;
+
+                              case 3:
+                                  kidnapCount = kidnapCount + 1;
+                                  break;
+                          }
+                      });
+
+                      // pushing the new values
+                      dataPoints1.push({
+                          x: time.getTime(),
+                          y: yValue1
+                      });
+
+                      dataPoints2.push({
+                          x: time.getTime(),
+                          y: yValue2
+                      });
+
+                      dataPoints3.push({
+                          x: time.getTime(),
+                          y: yValue3
+                      });
+                  };
+
+                  // updating legend text with  updated with y Value 
+                  chart.options.data[0].legendText = " Robberies A  #" + yValue1;
+                  chart.options.data[1].legendText = " Accidents B  #" + yValue2;
+                  chart.options.data[2].legendText = " Accidents C  #" + yValue3;
+
+                  chart.render();
+              };
+
+              // generates first set of dataPoints 
+              updateChart(1440);
+
+              // update chart after specified interval 
+              setInterval(function () { updateChart() }, updateInterval);
+          }
+</script>
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css" integrity="sha384-1q8mTJOASx8j1Au+a5WDVnPi2lkFfwwEAa8hDDdjZlpLegxhjVME1fgjWPGmkzs7" crossorigin="anonymous">
+<style>
+    #map, #map2 {
+        display: block;
+        width: 100%;
+        height: 300px;
+    }
+</style>
+
+    <div class="row">
+        <div class="col-md-6">
+            <div id="chartAlerts" style="height: 300px; width: 100%;">
+            </div>
+            <div id="map"></div>
+            @Html.Action("Index", "AlertsViews")
+        </div>
+        <div class="col-md-6">
+            <div id="chartUsersConnected" style="height: 300px; width:100%;">
+            </div>
+            <div id="map2"></div>
+            <table id="tblUsersConnected" class="table table-bordered">
+                <thead>
+                    <tr>
+                        <td>UserId</td>
+                        <td>Latitude</td>
+                        <td>Longitude</td>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
